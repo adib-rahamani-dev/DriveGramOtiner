@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     telegram_channel_id: str = ""
     telegram_chat_id: str = ""
     telegram_bot_api_url: str = "http://bot-api:8081"
+    telegram_api_mode: Literal["local", "cloud"] = "local"
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")
     google_drive_folder_id: str = ""
@@ -34,6 +36,7 @@ class Settings(BaseSettings):
     lease_seconds: int = Field(120, ge=30)
     disk_reserve_mb: int = Field(512, ge=0)
     temp_dir: Path = Path("/transfers")
+    worker_heartbeat_path: Path = Path("/tmp/drivegram-worker-heartbeat")
     public_base_url: str = "http://localhost:8000"
     cookie_secure: bool = True
     remote_worker: bool = False
@@ -43,9 +46,12 @@ class Settings(BaseSettings):
     def trusted_endpoints(self):
         from urllib.parse import urlparse
         url = urlparse(self.telegram_bot_api_url)
-        if url.scheme not in {"http", "https"} or not url.hostname or url.username or url.query:
+        if url.scheme not in {"http", "https"} or not url.hostname or url.username or url.password or url.query or url.fragment:
             raise ValueError("Invalid Local Bot API address")
-        if url.hostname == "api.telegram.org":
+        if self.telegram_api_mode == "cloud":
+            if self.telegram_bot_api_url.rstrip("/") != "https://api.telegram.org":
+                raise ValueError("Cloud mode requires the official HTTPS Telegram endpoint")
+        elif url.hostname == "api.telegram.org":
             raise ValueError("Transfers require a Local Bot API server")
         return self
 
@@ -56,8 +62,14 @@ class Settings(BaseSettings):
 
     @property
     def telegram_configured(self):
-        return bool(self.telegram_bot_token.get_secret_value() and self.telegram_api_id
-                    and self.telegram_api_hash.get_secret_value() and self.telegram_target_id)
+        return bool(self.telegram_bot_token.get_secret_value() and self.telegram_target_id
+                    and (self.telegram_api_mode == "cloud" or
+                         (self.telegram_api_id and self.telegram_api_hash.get_secret_value())))
+
+    @property
+    def max_file_size_bytes(self):
+        configured = self.max_file_size_mb * 1024 * 1024
+        return min(configured, 50_000_000) if self.telegram_api_mode == "cloud" else configured
 
     @property
     def telegram_target_id(self):

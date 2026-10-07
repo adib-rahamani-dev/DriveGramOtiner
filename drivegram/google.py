@@ -130,7 +130,7 @@ class GoogleDrive:
 
     def download(self, job, path, progress):
         self.validate_snapshot(job)
-        if job.size_bytes > self.settings.max_file_size_mb * 1024 * 1024:
+        if job.size_bytes > self.settings.max_file_size_bytes:
             raise ServiceError("too_large", "حجم فایل از سقف تنظیم‌شده بیشتر است.")
         reserve = self.settings.disk_reserve_mb * 1024 * 1024
         if shutil.disk_usage(path.parent).free < job.size_bytes + reserve:
@@ -150,7 +150,7 @@ class GoogleDrive:
                         if time.monotonic() - start > self.settings.download_timeout_seconds:
                             raise ServiceError("download_timeout", "مهلت دانلود تمام شد.", retryable=True)
                         count += len(chunk)
-                        if count > self.settings.max_file_size_mb * 1024 * 1024 or count > job.size_bytes:
+                        if count > self.settings.max_file_size_bytes or count > job.size_bytes:
                             raise ServiceError("size_changed", "حجم دانلود با نسخه انتخاب‌شده تطابق ندارد.")
                         if shutil.disk_usage(path.parent).free < len(chunk) + reserve:
                             raise ServiceError("disk_full", "فضای دیسک کافی نیست.", retryable=True)

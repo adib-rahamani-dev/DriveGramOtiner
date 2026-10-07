@@ -1,0 +1,13 @@
+# Windows runs the cloud-API worker; Compose keeps the panel and database.
+services:
+  db:
+    ports: ["127.0.0.1:15432:5432"]
+    networks: [backend, windows-db]
+  app:
+    environment:
+      REMOTE_WORKER: "true"
+networks:
+  windows-db:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"

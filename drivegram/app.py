@@ -133,7 +133,8 @@ def create_app(settings=None, sessions=None):
         if request.session.get("admin") != fingerprint:
             return RedirectResponse("/login", status_code=303)
         return templates.TemplateResponse(request, "panel.html", {"csrf": csrf_token(request),
-            "oauth_notice": request.session.pop("oauth_notice", None)})
+            "oauth_notice": request.session.pop("oauth_notice", None),
+            "upload_limit_mb": settings.max_file_size_bytes / 1_000_000})
 
     @app.get("/api/status")
     def status(request: Request, page: int = 1):

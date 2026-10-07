@@ -65,11 +65,14 @@ class Telegram:
     def close(self):
         self.client.close()
 
-    def call(self, method, payload=None, *, sending=False):
+    def call(self, method, payload=None, *, sending=False, files=None):
         try:
-            response = self.client.post(self.base + "/" + method, json=payload or {})
+            if files:
+                response = self.client.post(self.base + "/" + method, data=payload or {}, files=files)
+            else:
+                response = self.client.post(self.base + "/" + method, json=payload or {})
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
-            raise ServiceError("telegram_connect", "اتصال به Local Bot API ممکن نیست.", retryable=True) from None
+            raise ServiceError("telegram_connect", "اتصال به سرویس تلگرام ممکن نیست.", retryable=True) from None
         except httpx.HTTPError:
             raise ServiceError("upload_unknown" if sending else "telegram_network",
                                "نتیجه ارسال نامشخص است؛ گفتگوی مقصد را بررسی کنید." if sending else "ارتباط تلگرام قطع شد.",
@@ -111,6 +114,8 @@ class Telegram:
         return me
 
     def send(self, path, name):
+        if path.stat().st_size > self.settings.max_file_size_bytes:
+            raise ServiceError("file_too_large", "حجم فایل از سقف مجاز ارسال بیشتر است؛ فایل تغییر یا تقسیم نمی‌شود.")
         info = streamable_video(path)
         kind = "video" if info else "document"
         payload = {"chat_id": self.settings.telegram_target_id, "caption": caption(name), kind: path.as_uri()}
@@ -119,7 +124,16 @@ class Telegram:
             payload["supports_streaming"] = True
         else:
             payload["disable_content_type_detection"] = True
-        result = self.call("sendVideo" if info else "sendDocument", payload, sending=True)
+        method = "sendVideo" if info else "sendDocument"
+        if self.settings.telegram_api_mode == "cloud":
+            payload.pop(kind)
+            form = {key: str(value).lower() if isinstance(value, bool) else str(value)
+                    for key, value in payload.items()}
+            with path.open("rb") as source:
+                result = self.call(method, form, sending=True,
+                                   files={kind: (path.name, source, "video/mp4" if info else "application/octet-stream")})
+        else:
+            result = self.call(method, payload, sending=True)
         try:
             return str(result["chat"]["id"]), int(result["message_id"]), result[kind]["file_id"]
         except (KeyError, TypeError, ValueError):

@@ -20,11 +20,12 @@ def main():
         'GOOGLE_CLIENT_SECRET': settings.google_client_secret.get_secret_value(),
         'GOOGLE_DRIVE_FOLDER_ID': settings.google_drive_folder_id,
         'TELEGRAM_BOT_TOKEN': settings.telegram_bot_token.get_secret_value(),
-        'TELEGRAM_API_ID': settings.telegram_api_id,
-        'TELEGRAM_API_HASH': settings.telegram_api_hash.get_secret_value(),
         'TOKEN_ENCRYPTION_KEY': settings.token_encryption_key.get_secret_value(),
         'SESSION_SECRET': settings.session_secret.get_secret_value(),
     }
+    if settings.telegram_api_mode == 'local':
+        required.update({'TELEGRAM_API_ID': settings.telegram_api_id,
+                         'TELEGRAM_API_HASH': settings.telegram_api_hash.get_secret_value()})
     missing = [name for name, value in required.items() if not value]
     database_ok = False
     cloud_ok = not args.cloud_check

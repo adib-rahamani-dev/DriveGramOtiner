@@ -7,6 +7,7 @@
 <main>
 <section class="intro"><div><p class="eyebrow">از درایو به پی‌وی شما</p><h1>ویدیوها، با همان کیفیت اصلی.</h1><p class="muted">فایل اصلی در گوگل درایو باقی می‌ماند.</p></div><span id="worker" class="badge">در حال بررسی سرویس انتقال…</span></section>
 <p class="small muted">دانلود و ارسال از اینترنتِ میزبان سرویس انتقال استفاده می‌کند. اگر آن سرویس روی همین کامپیوتر اجرا شود، اینترنت شما مصرف می‌شود؛ اجرای آن روی میزبان ابری، اینترنت انتقال را به همان میزبان منتقل می‌کند.</p>
+<p class="small muted">سقف ارسال فعلی: {{ upload_limit_mb|round(1) }} مگابایت. فایل کامل و بدون تغییر ارسال می‌شود؛ فایل بزرگ‌تر ارسال یا تقسیم نمی‌شود.</p>
 {% if oauth_notice %}<div class="notice">{{ oauth_notice }}</div>{% endif %}
 <div id="alert" class="notice error" role="alert" hidden></div>
 <section class="cards" aria-label="وضعیت سرویس‌ها">

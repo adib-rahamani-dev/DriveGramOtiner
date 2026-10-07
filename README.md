@@ -10,7 +10,7 @@ FastAPI پنل فارسی را اجرا می‌کند؛ worker مستقل دان
 
 `Start-DriveGram.cmd` سرویس‌های پروژه را با Docker داخل WSL راه می‌اندازد؛ `Stop-DriveGram.cmd` آن‌ها را متوقف می‌کند و داده‌ها را نگه می‌دارد. پس از reboot برای شروع دوباره فایل Start را اجرا کنید. پوشهٔ خصوصی `test-results/wheels` در این نصب برای build آفلاین بسته‌های Python استفاده می‌شود؛ `compose.wsl.yaml` در نصب‌های دیگر اختیاری است. نصب مستقل به Docker Engine فعال در توزیع WSL تنظیم‌شده نیاز دارد.
 
-دانلود از Drive و آپلود به تلگرام از اینترنت **میزبان worker** استفاده می‌کند. اجرای محلی اینترنت همین کامپیوتر را مصرف می‌کند. برای مصرف نشدن اینترنت شخصی در مرحلهٔ انتقال، worker و Local Bot API باید روی میزبان ابری باشند؛ پنل می‌تواند محلی یا Vercel باشد. خود آپلود اولیهٔ شما به Drive نیز اینترنت می‌خواهد.
+دانلود از Drive و آپلود به تلگرام از اینترنت **میزبان worker** استفاده می‌کند. اجرای محلی اینترنت همین کامپیوتر را مصرف می‌کند. برای مصرف نشدن اینترنت شخصی در مرحلهٔ انتقال، worker باید روی میزبان ابری باشد؛ در حالت فایل بزرگ، Local Bot API هم روی همان میزبان اجرا می‌شود. پنل می‌تواند محلی یا Vercel باشد. خود آپلود اولیهٔ شما به Drive نیز اینترنت می‌خواهد.
 
 بررسی تنظیمات بدون نمایش کلیدها: `python -m scripts.doctor`؛ گزینهٔ `--cloud-check` فقط هویت ربات را از API عمومی می‌خواند و پیامی ارسال نمی‌کند.
 
@@ -67,7 +67,17 @@ docker compose up -d --force-recreate app worker bot-api
 
 ## Telegram و Local Bot API
 
-طبق [مستندات رسمی Local Bot API](https://core.telegram.org/bots/api#using-a-local-bot-api-server)، حالت local فایل‌های تا ۲۰۰۰ مگابایت و مسیر محلی `file://` را می‌پذیرد. API عمومی برای این نیاز مناسب نیست. سقف برنامه پیش‌فرض ۵۰۰ MiB است و از ۲۰۰۰ MiB بالاتر پذیرفته نمی‌شود.
+### ارسال کامل تا ۵۰ مگابایت بدون API ID/hash
+
+برای آزمایش فایل‌های کوچک، `TELEGRAM_API_MODE=cloud`، `TELEGRAM_BOT_API_URL=https://api.telegram.org` و `MAX_FILE_SIZE_MB=50` را در `.env` بگذارید. این حالت فقط به توکن ربات و اتصال پی‌وی نیاز دارد؛ my.telegram.org و Local Bot API لازم نیست. سقف مؤثر برای احتیاط ۵۰٬۰۰۰٬۰۰۰ بایت است. فایل کامل از طریق multipart و بدون تغییر، فشرده‌سازی یا تقسیم ارسال می‌شود؛ فایل بزرگ‌تر پیش از دانلود/ارسال رد می‌شود. شکست نامشخص آپلود همچنان نیازمند بررسی دستی مقصد است.
+
+در Windows، `Start-DriveGram.cmd` در این حالت پنل و دیتابیس را در Compose و worker را با Python محیط `.venv` در خود Windows اجرا می‌کند. ارتباط دیتابیس فقط روی `127.0.0.1:15432` با همان رمز خصوصی پروژه برقرار است؛ شبکهٔ مخصوص این اتصال masquerading خروجی ندارد. worker از اتصال شبکهٔ موجود Windows استفاده می‌کند، فایل‌های موقت و لاگ پالایش‌شده در مسیر ignored `data/` نگهداری می‌شوند و worker قدیمی Docker و Local Bot API متوقف می‌شوند. `Stop-DriveGram.cmd` worker خود پروژه را هم متوقف می‌کند. هیچ پل پروکسی، تنظیم firewall یا تغییر اعتبارسنجی TLS انجام نمی‌شود. پنل فضای دیسک و heartbeat همان worker Windows را نشان می‌دهد.
+
+این حالت همچنان به OAuth گوگل و پوشهٔ خصوصی Drive نیاز دارد و اجرای محلی از اینترنت کامپیوتر مصرف می‌کند. برای فایل بزرگ و کامل به حالت `local` و تنظیمات زیر برگردید؛ تغییر میزبان به‌تنهایی سقف API عمومی را افزایش نمی‌دهد.
+
+### ارسال فایل بزرگ
+
+طبق [مستندات رسمی Local Bot API](https://core.telegram.org/bots/api#using-a-local-bot-api-server)، حالت local فایل‌های تا ۲۰۰۰ مگابایت و مسیر محلی `file://` را می‌پذیرد. API عمومی برای این نیاز مناسب نیست. سقف برنامه در حالت local پیش‌فرض ۵۰۰ MiB است و از ۲۰۰۰ MiB بالاتر پذیرفته نمی‌شود.
 
 1. با حساب تلگرام خودتان وارد [my.telegram.org](https://my.telegram.org/) شوید؛ در **API development tools**، application بسازید و `api_id` و `api_hash` را دریافت کنید. این مقادیر متعلق به application هستند؛ **ربات جدید نسازید**. [راهنمای رسمی](https://core.telegram.org/api/obtaining_api_id).
 2. `TELEGRAM_API_ID`، `TELEGRAM_API_HASH` و توکن همان `DriveGramOtiner_bot` را در `.env` بنویسید.
@@ -85,7 +95,7 @@ docker compose up -d --force-recreate app worker bot-api
    docker compose run --rm --no-deps app python -m scripts.telegram_admin check
    ```
 
-worker هر ۶۰ ثانیه هویت دقیق ربات و دسترسی به گفتگوی خصوصی مقصد را بررسی می‌کند. `TELEGRAM_BOT_API_URL` باید آدرس داخلی Local Bot API باشد. هیچ پورت Bot API یا دیتابیس روی میزبان منتشر نمی‌شود. worker و Bot API با UID مشترک و mount دقیقاً یکسان `/transfers` فایل را می‌خوانند؛ Bot API دسترسی read-only دارد. شبکه egress برای اتصال خروجی به Telegram/Google است. log خام Bot API غیرفعال است تا URL توکن‌دار ثبت نشود.
+worker هر ۶۰ ثانیه هویت دقیق ربات و دسترسی به گفتگوی خصوصی مقصد را بررسی می‌کند. در حالت local، `TELEGRAM_BOT_API_URL` باید آدرس داخلی Local Bot API باشد. در Compose معمولی این حالت هیچ پورت Bot API یا دیتابیس روی میزبان منتشر نمی‌شود. worker و Bot API با UID مشترک و mount دقیقاً یکسان `/transfers` فایل را می‌خوانند؛ Bot API دسترسی read-only دارد. شبکه egress برای اتصال خروجی به Telegram/Google است. log خام Bot API غیرفعال است تا URL توکن‌دار ثبت نشود.
 
 تنظیم قدیمی `TELEGRAM_CHANNEL_ID` فقط وقتی پی‌وی ثبت نشده باشد استفاده می‌شود؛ در آن حالت ربات باید مجوز مدیریت و ارسال داشته باشد. پی‌وی ثبت‌شده در پنل همیشه اولویت دارد. ابزار `python -m scripts.telegram_admin channel-id` صرفاً شناسه‌های کانال را در updates می‌خواند و برای پی‌وی لازم نیست. webhook قبلی مانع getUpdates و ثبت پی‌وی است؛ برنامه آن را خودکار حذف نمی‌کند.
 

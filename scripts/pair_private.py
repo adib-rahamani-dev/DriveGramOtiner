@@ -56,7 +56,7 @@ def from_windows(distribution):
     if not state['pending']:
         return 'Start a new private-chat pairing in the panel first.'
     settings = get_settings()
-    if settings.telegram_api_id and settings.telegram_api_hash.get_secret_value():
+    if settings.telegram_api_mode != 'cloud' and settings.telegram_api_id and settings.telegram_api_hash.get_secret_value():
         return 'Local API credentials are configured; use the normal panel pairing instead of the cloud helper.'
     token = settings.telegram_bot_token.get_secret_value()
     if not token:

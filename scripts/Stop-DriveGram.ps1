@@ -1,6 +1,7 @@
 param([string]$WslDistribution = 'Ubuntu-22.04')
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+& (Join-Path $PSScriptRoot 'Windows-Worker.ps1') -Stop
 $portableRoot = $projectRoot.Replace('\', '/')
 $linuxRoot = (& wsl.exe -d $WslDistribution -u root -- wslpath -a $portableRoot | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or -not $linuxRoot.StartsWith('/')) { throw 'Could not resolve the project in WSL.' }

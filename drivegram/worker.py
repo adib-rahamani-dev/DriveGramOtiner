@@ -5,7 +5,6 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
-from pathlib import Path
 
 from sqlalchemy import select
 
@@ -223,7 +222,8 @@ def main():
                     control.worker_disk_free, control.worker_disk_total = disk.free, disk.total
                     recover_stale(session, settings)
                 cleanup(sessions, settings)
-                Path("/tmp/drivegram-worker-heartbeat").touch()
+                settings.worker_heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
+                settings.worker_heartbeat_path.touch()
                 if settings.telegram_bot_token.get_secret_value() and poll_pairing_once(sessions, settings):
                     telegram_ready, last_check = False, 0
                 with sessions() as session:

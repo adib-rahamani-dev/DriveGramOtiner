@@ -46,7 +46,7 @@ def record_scan(session, items, scope, settings):
                 previous.cancel_requested = False
             continue
         size = int(item.get("size", 0))
-        oversized = size > settings.max_file_size_mb * 1024 * 1024
+        oversized = size > settings.max_file_size_bytes
         new_job = Job(
             id=str(uuid.uuid4()), drive_file_id=pair[0], version_key=pair[1], source_scope=scope,
             original_name=item["name"], mime_type=item["mimeType"], size_bytes=size,
@@ -141,7 +141,7 @@ def queue_selected(session, job, settings, *, reviewed=False):
         raise ServiceError("review_required", "نتیجه ارسال نامشخص است؛ ابتدا گفتگوی مقصد را بررسی کنید.")
     if job.source_scope != current_scope(session, settings):
         raise ServiceError("old_source", "این فایل متعلق به اتصال یا پوشه قبلی است؛ دوباره اسکن کنید.")
-    if job.size_bytes > settings.max_file_size_mb * 1024 * 1024:
+    if job.size_bytes > settings.max_file_size_bytes:
         raise ServiceError("too_large", "حجم فایل از سقف تنظیم‌شده بیشتر است.")
     job.status = "queued"
     job.cancel_requested = job.needs_review = False
