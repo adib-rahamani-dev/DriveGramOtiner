@@ -1,6 +1,10 @@
 param([switch]$Stop)
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if (-not $Stop -and (Test-Path -LiteralPath (Join-Path $projectRoot 'data/google-script-active'))) {
+    Write-Host 'Google Apps Script is active. Local Windows transfers are disabled to avoid duplicate sends.'
+    return
+}
 $stateDir = Join-Path $projectRoot 'data'
 New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
 $workerPidFile = Join-Path $stateDir 'windows-worker.pid'

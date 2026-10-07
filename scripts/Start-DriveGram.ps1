@@ -4,6 +4,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if (Test-Path -LiteralPath (Join-Path $projectRoot 'data/google-script-active')) {
+    Write-Host 'Google Apps Script is active. Use /videos in the bot; local services are not needed.'
+    return
+}
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot '.env'))) {
     throw 'Create the private .env file first. See README.md.'
 }

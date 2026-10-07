@@ -182,9 +182,13 @@ function drivegramTick() {
     const next = files.find(f => ['ready', 'queued'].includes(dgState_(c, f).status) && Number(f.size) <= DG_LIMIT);
     if (next) dgTransfer_(c, next);
     c.props.setProperty('LAST_OK', new Date().toISOString());
-  } catch (_) {
+  } catch (error) {
     // Fail closed, keep unknown sends for review, and do not leak credentials in execution logs.
-    console.error('DriveGram stopped safely. Check private configuration, authorization and /videos.');
+    const safeCodes = ['SEND_UNKNOWN', 'TELEGRAM_NETWORK', 'TELEGRAM_REJECTED', 'DRIVE_NETWORK', 'DRIVE_ACCESS',
+      'FOLDER_TOO_LARGE', 'SOURCE_CHANGED', 'INCOMPLETE_DOWNLOAD', 'CHECKSUM_MISMATCH'];
+    const code = safeCodes.includes(error.message) ? error.message : 'SCRIPT_RUNTIME';
+    const frame = String(error.stack || '').match(/(?:Code|Code\.gs):(\d+)/);
+    console.error('DriveGram stopped safely code=' + code + (frame ? ' line=' + frame[1] : ''));
   } finally { lock.releaseLock(); }
 }
 

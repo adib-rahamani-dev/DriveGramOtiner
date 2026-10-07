@@ -24,6 +24,8 @@ def prepare():
 
 
 if __name__ == "__main__":
+    if (Path(__file__).resolve().parent.parent / "data" / "google-script-active").exists():
+        raise SystemExit("Google Apps Script is active; local Windows transfers are disabled.")
     try:
         prepare()
         from drivegram.worker import main
