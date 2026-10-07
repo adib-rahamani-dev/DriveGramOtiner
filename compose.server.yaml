@@ -1,0 +1,67 @@
+# Run on a Linux server with direct access to Google and Telegram, not the user's PC.
+# This whole-file 50 MB mode does not need Telegram API ID/hash or Local Bot API.
+name: drivegram-server
+x-runtime: &runtime
+  build: .
+  env_file: .env
+  environment:
+    TELEGRAM_API_MODE: cloud
+    TELEGRAM_BOT_API_URL: https://api.telegram.org
+    TELEGRAM_HTTP_PROXY: ""
+    MAX_FILE_SIZE_MB: "50"
+    TEMP_DIR: /transfers
+    REMOTE_WORKER: "false"
+  init: true
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  networks: [backend, egress]
+  volumes: ["transfers:/transfers"]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+services:
+  db:
+    image: postgres:16.15-bookworm
+    environment:
+      POSTGRES_USER: drivegram
+      POSTGRES_DB: drivegram
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure the server .env first}
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U drivegram -d drivegram"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    <<: *runtime
+    command: [alembic, upgrade, head]
+    depends_on:
+      db: {condition: service_healthy}
+  app:
+    <<: *runtime
+    restart: unless-stopped
+    # Initial setup through an SSH tunnel; expose via HTTPS only after domain setup.
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  worker:
+    <<: *runtime
+    restart: unless-stopped
+    command: [python, -m, drivegram.worker]
+    stop_grace_period: 45s
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -c, "import os,time; assert time.time()-os.stat('/tmp/drivegram-worker-heartbeat').st_mtime < 90"]
+      interval: 20s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+networks:
+  backend: {internal: true}
+  egress: {}
+volumes:
+  postgres-data: {}
+  transfers: {}
