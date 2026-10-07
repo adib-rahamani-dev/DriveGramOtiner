@@ -1,4 +1,5 @@
 import json
+import logging
 import subprocess
 
 import httpx
@@ -76,7 +77,10 @@ class Telegram:
                 response = self.client.post(self.base + "/" + method, json=payload or {})
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
             raise ServiceError("telegram_connect", "اتصال به سرویس تلگرام ممکن نیست.", retryable=True) from None
-        except httpx.HTTPError:
+        except httpx.HTTPError as error:
+            # Exception text and request URLs contain credentials. Log only the class.
+            logging.getLogger("drivegram.telegram").warning("Telegram transport interrupted type=%s sending=%s",
+                                                           type(error).__name__, sending)
             raise ServiceError("upload_unknown" if sending else "telegram_network",
                                "نتیجه ارسال نامشخص است؛ گفتگوی مقصد را بررسی کنید." if sending else "ارتباط تلگرام قطع شد.",
                                retryable=not sending, ambiguous=sending) from None

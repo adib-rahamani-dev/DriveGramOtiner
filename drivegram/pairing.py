@@ -6,6 +6,7 @@ from datetime import timedelta
 import httpx
 from sqlalchemy import func, select
 
+from drivegram.bot import owner_actions
 from drivegram.errors import ServiceError
 from drivegram.models import Control, Job, utcnow
 from drivegram.queue import control_lock
@@ -54,10 +55,11 @@ def poll_pairing_once(sessions, settings, client=None):
     with sessions.begin() as session:
         control = control_lock(session)
         now = utcnow()
-        if (not control.pair_hash or not control.pair_expires_at or control.pair_expires_at <= now
+        pairing = control.pair_hash and control.pair_expires_at and control.pair_expires_at > now
+        if ((not pairing and not control.private_chat_id)
                 or (control.pair_poll_until and control.pair_poll_until > now)):
             return False
-        control.pair_poll_until = now + timedelta(seconds=20)
+        control.pair_poll_until = now + timedelta(seconds=3 if control.private_chat_id else 20)
         offset, pending_hash = control.telegram_update_offset, control.pair_hash
     owned_client = client is None
     base = (settings.telegram_bot_api_url if settings.telegram_api_id and settings.telegram_api_hash.get_secret_value()
@@ -66,7 +68,7 @@ def poll_pairing_once(sessions, settings, client=None):
                                   if base.rstrip("/") == "https://api.telegram.org" else None)
     try:
         response = client.post(base.rstrip("/") + "/bot" + settings.telegram_bot_token.get_secret_value() + "/getUpdates",
-                               json={"offset": offset, "timeout": 0, "allowed_updates": ["message"]})
+                               json={"offset": offset, "timeout": 0, "allowed_updates": ["message", "callback_query"]})
         data = response.json()
         if not data.get("ok") or not isinstance(data.get("result"), list):
             raise ValueError()
@@ -76,11 +78,25 @@ def poll_pairing_once(sessions, settings, client=None):
             if control.pair_hash != pending_hash:
                 return False
             paired = False
+            actions = []
             for update in data["result"]:
-                if isinstance(update.get("update_id"), int):
-                    control.telegram_update_offset = max(control.telegram_update_offset, update["update_id"] + 1)
-                paired = accept_pairing(session, update) or paired
-            return paired
+                update_id = update.get("update_id")
+                if not isinstance(update_id, int) or update_id < control.telegram_update_offset:
+                    continue
+                control.telegram_update_offset = update_id + 1
+                accepted = accept_pairing(session, update)
+                paired = accepted or paired
+                if not accepted:
+                    actions.extend(owner_actions(session, settings, control, update))
+        # Persist the offset and queue changes before responding: a network interruption
+        # must never replay a send request. Responses contain no raw Drive URLs or secrets.
+        for method, payload in actions:
+            try:
+                client.post(base.rstrip("/") + "/bot" + settings.telegram_bot_token.get_secret_value() + "/" + method,
+                            json=payload)
+            except httpx.HTTPError:
+                pass
+        return paired
     except Exception:
         with sessions.begin() as session:
             control = control_lock(session)
