@@ -52,7 +52,7 @@ def main():
             token = settings.telegram_bot_token.get_secret_value()
             if not token:
                 raise ValueError()
-            with httpx.Client(timeout=20) as client:
+            with httpx.Client(timeout=20, proxy=settings.telegram_http_proxy.get_secret_value() or None) as client:
                 response = client.post('https://api.telegram.org/bot' + token + '/getMe')
                 result = response.json()
             matched = result.get('ok') and result.get('result', {}).get('username', '').lower() == 'drivegramotiner_bot'

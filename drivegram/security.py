@@ -60,6 +60,7 @@ class RedactingFormatter(logging.Formatter):
             settings.google_client_secret.get_secret_value(), settings.admin_password.get_secret_value(),
             settings.token_encryption_key.get_secret_value(), settings.session_secret.get_secret_value(),
             settings.database_url.get_secret_value(),
+            settings.telegram_http_proxy.get_secret_value(),
         ) if s]
 
     def format(self, record):

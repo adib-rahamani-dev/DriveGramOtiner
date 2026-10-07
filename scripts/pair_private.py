@@ -61,7 +61,7 @@ def from_windows(distribution):
     token = settings.telegram_bot_token.get_secret_value()
     if not token:
         return 'Bot token is missing.'
-    with httpx.Client(timeout=15) as client:
+    with httpx.Client(timeout=15, proxy=settings.telegram_http_proxy.get_secret_value() or None) as client:
         base = 'https://api.telegram.org/bot' + token
         identity = client.post(base + '/getMe').json()
         if not identity.get('ok') or identity.get('result', {}).get('username', '').lower() != EXPECTED_BOT.lower():

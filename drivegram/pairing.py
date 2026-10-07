@@ -60,9 +60,10 @@ def poll_pairing_once(sessions, settings, client=None):
         control.pair_poll_until = now + timedelta(seconds=20)
         offset, pending_hash = control.telegram_update_offset, control.pair_hash
     owned_client = client is None
-    client = client or httpx.Client(timeout=10)
     base = (settings.telegram_bot_api_url if settings.telegram_api_id and settings.telegram_api_hash.get_secret_value()
             else "https://api.telegram.org")
+    client = client or httpx.Client(timeout=10, proxy=(settings.telegram_http_proxy.get_secret_value() or None)
+                                  if base.rstrip("/") == "https://api.telegram.org" else None)
     try:
         response = client.post(base.rstrip("/") + "/bot" + settings.telegram_bot_token.get_secret_value() + "/getUpdates",
                                json={"offset": offset, "timeout": 0, "allowed_updates": ["message"]})

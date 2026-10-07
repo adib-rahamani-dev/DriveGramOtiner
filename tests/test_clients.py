@@ -3,6 +3,7 @@ import logging
 
 import httpx
 import pytest
+from pydantic import SecretStr
 
 from drivegram.errors import ServiceError
 from drivegram.google import GoogleDrive
@@ -103,3 +104,12 @@ def test_log_formatter_redacts_token_bearing_paths_and_secrets(settings):
     output = RedactingFormatter(settings).format(record)
     assert settings.telegram_bot_token.get_secret_value() not in output
     assert "test-secret" not in output
+
+
+def test_proxy_credentials_are_redacted_from_logs(settings):
+    proxy = "http://proxy-user:private-proxy-password@localhost:1234"
+    configured = settings.model_copy(update={"telegram_http_proxy": SecretStr(proxy)})
+    record = logging.LogRecord("test", 40, "", 1, "Connection failed through %s", (proxy,), None)
+    output = RedactingFormatter(configured).format(record)
+    assert proxy not in output
+    assert "private-proxy-password" not in output

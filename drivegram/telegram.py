@@ -59,7 +59,10 @@ def streamable_video(path):
 class Telegram:
     def __init__(self, settings, client=None):
         self.settings = settings
-        self.client = client or httpx.Client(timeout=httpx.Timeout(settings.upload_timeout_seconds, connect=15))
+        self.client = client or httpx.Client(
+            timeout=httpx.Timeout(settings.upload_timeout_seconds, connect=15),
+            proxy=(settings.telegram_http_proxy.get_secret_value() or None) if settings.telegram_api_mode == "cloud" else None,
+        )
         self.base = settings.telegram_bot_api_url.rstrip("/") + "/bot" + settings.telegram_bot_token.get_secret_value()
 
     def close(self):

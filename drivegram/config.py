@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     telegram_chat_id: str = ""
     telegram_bot_api_url: str = "http://bot-api:8081"
     telegram_api_mode: Literal["local", "cloud"] = "local"
+    telegram_http_proxy: SecretStr = SecretStr("")
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")
     google_drive_folder_id: str = ""
