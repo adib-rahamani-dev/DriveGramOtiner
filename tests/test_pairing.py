@@ -1,3 +1,5 @@
+import io
+import json
 import re
 from datetime import timedelta
 from urllib.parse import parse_qs, urlparse
@@ -12,6 +14,7 @@ from drivegram.models import Control, Job, utcnow
 from drivegram.pairing import accept_pairing, begin_pairing, destination_settings, poll_pairing_once
 from drivegram.queue import claim_job, current_scope
 from drivegram.telegram import Telegram
+from scripts import pair_private
 from tests.test_app import login
 
 
@@ -64,6 +67,22 @@ def test_poll_persists_pair_and_offset_without_sending_messages(sessions, settin
     with sessions() as session:
         assert session.get(Control, 1).private_chat_id == "123"
         assert session.get(Control, 1).telegram_update_offset == 10
+
+
+def test_windows_setup_helper_keeps_nonce_validation_and_persists_offsets(sessions, monkeypatch):
+    monkeypatch.setattr(pair_private, 'database', lambda: (None, sessions))
+    with sessions.begin() as session:
+        code = code_from_url(begin_pairing(session))
+    assert pair_private.db_action('state')['pending']
+    messages = [update('incorrect', 999), update(code)]
+    messages[0]['update_id'] = 8
+    monkeypatch.setattr(pair_private.sys, 'stdin', io.StringIO(json.dumps(messages)))
+    assert pair_private.db_action('accept') == {'paired': True}
+    with sessions() as session:
+        assert session.get(Control, 1).private_chat_id == '123'
+        assert session.get(Control, 1).telegram_update_offset == 10
+    monkeypatch.setattr(pair_private.sys, 'stdin', io.StringIO(json.dumps([update(code, 999)])))
+    assert pair_private.db_action('accept') == {'paired': False}
 
 
 def test_private_destination_does_not_require_channel_membership(settings, tmp_path):
