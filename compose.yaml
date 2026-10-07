@@ -1,0 +1,85 @@
+name: drivegram
+x-app: &app
+  build: .
+  env_file: .env
+  restart: unless-stopped
+  init: true
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  networks: [backend, egress]
+  volumes:
+    - transfers:/transfers
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+services:
+  db:
+    image: postgres:16.15-bookworm
+    environment:
+      POSTGRES_USER: drivegram
+      POSTGRES_DB: drivegram
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/setup_env.py first}
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U drivegram -d drivegram"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    <<: *app
+    command: [alembic, upgrade, head]
+    restart: "no"
+    depends_on:
+      db: {condition: service_healthy}
+  app:
+    <<: *app
+    ports: ["${PANEL_BIND:-127.0.0.1:8000}:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:8000/healthz]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  worker:
+    <<: *app
+    command: [python, -m, drivegram.worker]
+    stop_grace_period: 45s
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      bot-api: {condition: service_started}
+    healthcheck:
+      test: [CMD, python, -c, "import os,time; assert time.time()-os.stat('/tmp/drivegram-worker-heartbeat').st_mtime < 90"]
+      interval: 20s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+  bot-api:
+    build:
+      context: .
+      dockerfile: docker/bot-api.Dockerfile
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+    # No published ports. Only app/worker can reach the API through backend.
+    networks: [backend, egress]
+    volumes: ["transfers:/transfers:ro", "bot-api-data:/bot-api-data"]
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    healthcheck:
+      test: [CMD-SHELL, "curl --silent --output /dev/null --connect-timeout 3 http://localhost:8081/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+networks:
+  backend: {internal: true}
+  egress: {}
+volumes:
+  postgres-data: {}
+  transfers: {}
+  bot-api-data: {}

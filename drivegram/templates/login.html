@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ورود · DriveGram</title><link rel="stylesheet" href="/static/style.css"></head>
+<body class="login-body"><main class="login-card">
+  <div class="brand"><span class="brand-mark">D</span><span dir="ltr">DriveGram</span></div>
+  <h1>فضای خصوصی ویدیوهای شما</h1><p class="muted">برای مدیریت انتقال از گوگل درایو به تلگرام وارد شوید.</p>
+  {% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/login">
+    <input type="hidden" name="csrf_value" value="{{ csrf }}">
+    <label for="username">نام کاربری</label><input id="username" name="username" autocomplete="username" required maxlength="128" dir="ltr">
+    <label for="password">رمز عبور</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" dir="ltr">
+    <button class="primary full" type="submit">ورود به پنل</button>
+  </form><p class="small muted">دسترسی فقط برای مدیر سرویس</p>
+</main></body></html>

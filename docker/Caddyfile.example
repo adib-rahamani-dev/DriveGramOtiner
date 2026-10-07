@@ -1,0 +1,5 @@
+drivegram.example.com {
+    # Caddy on the host automatically provisions HTTPS.
+    reverse_proxy 127.0.0.1:8000
+    # Deliberately no access-log directive: OAuth callback includes a one-time code.
+}

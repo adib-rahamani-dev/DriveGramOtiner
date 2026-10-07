@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="{{ csrf }}"><title>DriveGram · مدیریت انتقال</title><link rel="stylesheet" href="/static/style.css"><script src="/static/panel.js" defer></script></head>
+<body><div class="shell">
+<header><div class="brand"><span class="brand-mark">D</span><span dir="ltr">DriveGram</span><span class="private-label">خصوصی</span></div>
+<form action="/logout" method="post"><input type="hidden" name="csrf_value" value="{{ csrf }}"><button class="ghost" type="submit">خروج</button></form></header>
+<main>
+<section class="intro"><div><p class="eyebrow">از درایو به کانال شما</p><h1>ویدیوها، با همان کیفیت اصلی.</h1><p class="muted">انتقال روی سرور انجام می‌شود. فایل اصلی در گوگل درایو باقی می‌ماند.</p></div><span id="worker" class="badge">در حال بررسی worker…</span></section>
+{% if oauth_notice %}<div class="notice">{{ oauth_notice }}</div>{% endif %}
+<div id="alert" class="notice error" role="alert" hidden></div>
+<section class="cards" aria-label="وضعیت سرویس‌ها">
+<article class="card"><span class="card-label">گوگل درایو</span><h2 id="google">در حال بررسی…</h2><form method="post" action="/oauth/start"><input type="hidden" name="csrf_value" value="{{ csrf }}"><button id="oauth" class="ghost" type="submit">اتصال / تمدید مجوز گوگل</button></form><p id="last-scan" class="small muted"></p></article>
+<article class="card"><span class="card-label">تلگرام</span><h2 id="telegram">در حال بررسی…</h2><p class="small muted" dir="ltr">@DriveGramOtiner_bot</p><p class="small muted">آپلود از طریق Local Bot API</p></article>
+<article class="card"><span class="card-label">فضای خالی سرور</span><h2 id="disk">—</h2><meter id="disk-meter" min="0" max="100" value="0"></meter><p class="small muted">فضای مشترک فایل‌های موقت</p></article>
+</section>
+<section class="toolbar"><div><h2>کتابخانه ویدیوها <span id="queue" class="badge">۰ در صف</span></h2><p class="small muted">اسکن اول فایل‌ها را ثبت می‌کند. فایل‌های قبلی را برای انتقال انتخاب کنید.</p></div><label class="toggle"><input id="sync" type="checkbox"><span>انتقال خودکار فایل‌های جدید</span></label></section>
+<section class="library">
+<div class="library-actions"><label><input id="select-all" type="checkbox"> انتخاب فایل‌های مجاز این صفحه</label><button id="queue-selected" class="primary" disabled>انتقال انتخاب‌شده‌ها</button></div>
+<div id="jobs" class="jobs" aria-live="polite"><div class="empty">در حال دریافت فهرست…</div></div>
+<footer class="pagination"><button id="prev" class="ghost">صفحه قبل</button><span id="page-info"></span><button id="next" class="ghost">صفحه بعد</button></footer>
+</section>
+<p class="small muted footnote">پیشرفت دانلود بر اساس بایت‌های دریافت‌شده است. تلگرام درصد واقعی آپلود را ارائه نمی‌دهد؛ هنگام ارسال فقط مرحله نمایش داده می‌شود.</p>
+</main></div></body></html>
