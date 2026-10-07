@@ -12,3 +12,13 @@
 Not verified here: running the full Compose stack or compiling the official Local Bot API image (local Docker daemon unavailable), a real OAuth grant, Telegram permissions, and a real 300 MiB end-to-end transfer. Google OAuth credentials/folder, Telegram application API ID/hash and channel ID are still required. The CI workflow repeats migration, drift, PostgreSQL tests and app-image build on Linux.
 
 One non-failing warning remains in tests: Starlette deprecates its current HTTPX TestClient integration. Runtime clients use the explicitly pinned HTTPX version; tests currently pass.
+
+## Vercel/cloud update
+
+- Production deployment `dpl_HyJwFf7uYFdXkRFTYQZ2rc5i5aUK` is READY at https://drivegramotiner.vercel.app. Public checks without credentials: root 200, stylesheet 200, health 503/setup_required, private status 404. The browser confirms the Persian setup page explicitly says transfers are not active.
+- Windows: 31 passed, 1 PostgreSQL test skipped. Linux/PostgreSQL: all 32 passed. An initial Linux run had a transient CSRF test failure; its isolated rerun and the subsequent complete suite passed.
+- Migration 0002 applied; Alembic check reports no schema drift. Ruff and cloud Compose validation passed. Cloud Compose itself has not been started.
+- Remote panel tests forbid local disk access and verify worker disk values and unknown status after a missing heartbeat. The unconfigured entrypoint does not expose private API routes.
+- No .env file or Telegram credentials were sent to Vercel. The deployment uploaded 27 source/config files (85.7 KB); local dependencies, tests, data and private environment files are excluded.
+- Vercel GitHub connection was attempted but rejected for repository access. Automatic Git-triggered deployments are not enabled. CLI deployment succeeded independently.
+- A permanent cloud worker, managed database, credentials and real end-to-end verification are still pending; publishing the setup page is not a fully running transfer service.

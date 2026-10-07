@@ -215,7 +215,10 @@ def main():
         while not stopping.is_set():
             try:
                 with sessions.begin() as session:
-                    control_lock(session).worker_heartbeat = utcnow()
+                    control = control_lock(session)
+                    disk = shutil.disk_usage(settings.temp_dir)
+                    control.worker_heartbeat = utcnow()
+                    control.worker_disk_free, control.worker_disk_total = disk.free, disk.total
                     recover_stale(session, settings)
                 cleanup(sessions, settings)
                 Path("/tmp/drivegram-worker-heartbeat").touch()

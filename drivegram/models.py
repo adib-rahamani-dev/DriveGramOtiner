@@ -34,6 +34,8 @@ class Control(Base):
     telegram_error: Mapped[str | None] = mapped_column(Text)
     telegram_retry_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     worker_heartbeat: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    worker_disk_free: Mapped[int | None] = mapped_column(BigInteger)
+    worker_disk_total: Mapped[int | None] = mapped_column(BigInteger)
 
 
 class OAuthToken(Base):

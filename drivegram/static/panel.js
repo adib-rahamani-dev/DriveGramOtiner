@@ -53,7 +53,8 @@ async function refresh() {
     state = await response.json(); pages = state.pages;
     $("google").textContent = state.google; $("telegram").textContent = state.telegram; $("oauth").disabled = !state.google_can_connect;
     $("last-scan").textContent = `آخرین اسکن: ${date(state.last_scan)}`;
-    $("disk").textContent = size(state.disk_free); $("disk-meter").value = state.disk_total ? (state.disk_total - state.disk_free) / state.disk_total * 100 : 0;
+    $("disk").textContent = state.disk_free == null ? "در انتظار اتصال پردازشگر" : size(state.disk_free);
+    $("disk-meter").value = state.disk_total ? (state.disk_total - state.disk_free) / state.disk_total * 100 : 0;
     $("queue").textContent = `${number(state.queue_count)} در صف`; $("sync").checked = state.auto_sync;
     $("worker").textContent = state.worker_ok ? "worker فعال" : "worker در دسترس نیست"; $("worker").className = `badge ${state.worker_ok ? "good" : "failed"}`;
     for (const id of [...selected]) { if (!state.jobs.some(j => j.id === id && j.can_queue)) selected.delete(id); }

@@ -16,3 +16,4 @@ test-results/
 test-results-*.json
 dist/
 *.egg-info/
+.vercel/

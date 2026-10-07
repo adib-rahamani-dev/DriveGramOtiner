@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     temp_dir: Path = Path("/transfers")
     public_base_url: str = "http://localhost:8000"
     cookie_secure: bool = True
+    remote_worker: bool = False
+    database_no_pool: bool = False
 
     @model_validator(mode="after")
     def trusted_endpoints(self):

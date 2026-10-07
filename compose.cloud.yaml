@@ -1,0 +1,57 @@
+# Run only on a persistent cloud host. Database is managed externally.
+name: drivegram-cloud
+x-runtime: &runtime
+  build: .
+  env_file: .env
+  restart: unless-stopped
+  init: true
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  networks: [backend, egress]
+  volumes: ["transfers:/transfers"]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+services:
+  migrate:
+    <<: *runtime
+    command: [alembic, upgrade, head]
+    restart: "no"
+  worker:
+    <<: *runtime
+    command: [python, -m, drivegram.worker]
+    stop_grace_period: 45s
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      bot-api: {condition: service_started}
+    healthcheck:
+      test: [CMD, python, -c, "import os,time; assert time.time()-os.stat('/tmp/drivegram-worker-heartbeat').st_mtime < 90"]
+      interval: 20s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+  bot-api:
+    build:
+      context: .
+      dockerfile: docker/bot-api.Dockerfile
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+    networks: [backend, egress]
+    volumes: ["transfers:/transfers:ro", "bot-api-data:/bot-api-data"]
+    restart: unless-stopped
+    init: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    healthcheck:
+      test: [CMD-SHELL, "curl --silent --output /dev/null --connect-timeout 3 http://localhost:8081/"]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+networks:
+  backend: {internal: true}
+  egress: {}
+volumes:
+  transfers: {}
+  bot-api-data: {}

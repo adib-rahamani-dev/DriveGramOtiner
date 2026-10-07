@@ -138,8 +138,10 @@ def create_app(settings=None, sessions=None):
     def status(request: Request, page: int = 1):
         authorized(request)
         page = max(1, page)
-        settings.temp_dir.mkdir(parents=True, exist_ok=True)
-        disk = shutil.disk_usage(settings.temp_dir)
+        disk = None
+        if not settings.remote_worker:
+            settings.temp_dir.mkdir(parents=True, exist_ok=True)
+            disk = shutil.disk_usage(settings.temp_dir)
         with sessions() as session:
             control = session.get(Control, 1)
             token = session.get(OAuthToken, 1)
@@ -163,8 +165,10 @@ def create_app(settings=None, sessions=None):
                     "telegram": ("متصل؛ ربات و کانال تأیید شدند" if control.telegram_ok and tg_recent
                                  else (control.telegram_error or "نیاز به تنظیم اتصال")),
                     "auto_sync": control.auto_sync, "worker_ok": heartbeat_ok,
-                    "last_scan": control.last_scan_at, "queue_count": count, "disk_free": disk.free,
-                    "disk_total": disk.total, "page": page, "pages": max(1, (total + 29) // 30),
+                    "last_scan": control.last_scan_at, "queue_count": count,
+                    "disk_free": disk.free if disk else (control.worker_disk_free if heartbeat_ok else None),
+                    "disk_total": disk.total if disk else (control.worker_disk_total if heartbeat_ok else None),
+                    "page": page, "pages": max(1, (total + 29) // 30),
                     "jobs": [{"id": j.id, "name": j.original_name, "size": j.size_bytes,
                               "status": j.status, "label": LABELS[j.status], "downloaded": j.bytes_downloaded,
                               "attempts": j.attempts, "error": j.error_message, "review": j.needs_review,
