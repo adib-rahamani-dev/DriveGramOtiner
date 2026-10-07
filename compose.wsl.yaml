@@ -1,0 +1,13 @@
+# Optional local override; test-results/wheels is private local build material, not in Git.
+x-offline: &offline
+  context: .
+  dockerfile: docker/app-offline.Dockerfile
+  additional_contexts:
+    wheels: ./test-results/wheels
+services:
+  app:
+    build: *offline
+  worker:
+    build: *offline
+  migrate:
+    build: *offline

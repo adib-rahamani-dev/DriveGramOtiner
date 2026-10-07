@@ -36,6 +36,11 @@ class Control(Base):
     worker_heartbeat: Mapped[datetime | None] = mapped_column(UTCDateTime())
     worker_disk_free: Mapped[int | None] = mapped_column(BigInteger)
     worker_disk_total: Mapped[int | None] = mapped_column(BigInteger)
+    private_chat_id: Mapped[str | None] = mapped_column(String(64))
+    pair_hash: Mapped[str | None] = mapped_column(String(64))
+    pair_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    pair_poll_until: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    telegram_update_offset: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
 
 
 class OAuthToken(Base):

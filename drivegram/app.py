@@ -20,6 +20,7 @@ from drivegram.db import database
 from drivegram.errors import ServiceError
 from drivegram.google import SCOPE
 from drivegram.models import Control, Job, LoginAttempt, OAuthToken, utcnow
+from drivegram.pairing import begin_pairing, destination_settings
 from drivegram.queue import cancel_job, control_lock, current_scope, queue_selected
 from drivegram.security import admin_hash, auth_fingerprint, check_password, cipher, configure_logging
 from drivegram.telegram import message_link
@@ -144,6 +145,7 @@ def create_app(settings=None, sessions=None):
             disk = shutil.disk_usage(settings.temp_dir)
         with sessions() as session:
             control = session.get(Control, 1)
+            target_settings = destination_settings(session, settings)
             token = session.get(OAuthToken, 1)
             scope = current_scope(session, settings)
             total = session.scalar(select(func.count()).select_from(Job))
@@ -162,8 +164,12 @@ def create_app(settings=None, sessions=None):
             return {"google": google_status,
                     "google_can_connect": bool(settings.google_client_id and settings.google_client_secret.get_secret_value()
                                                and settings.token_encryption_key.get_secret_value()),
-                    "telegram": ("متصل؛ ربات و کانال تأیید شدند" if control.telegram_ok and tg_recent
+                    "telegram": ("متصل؛ مقصد تأیید شد" if control.telegram_ok and tg_recent
                                  else (control.telegram_error or "نیاز به تنظیم اتصال")),
+                    "telegram_paired": bool(target_settings.telegram_target_id),
+                    "telegram_pair_pending": bool(control.pair_hash and control.pair_expires_at
+                                                   and control.pair_expires_at > utcnow()),
+                    "telegram_can_pair": heartbeat_ok,
                     "auto_sync": control.auto_sync, "worker_ok": heartbeat_ok,
                     "last_scan": control.last_scan_at, "queue_count": count,
                     "disk_free": disk.free if disk else (control.worker_disk_free if heartbeat_ok else None),
@@ -178,6 +184,17 @@ def create_app(settings=None, sessions=None):
                                            and j.source_scope == scope,
                               "can_cancel": j.status in {"discovered", "queued", "downloading", "failed"}}
                              for j in rows]}
+
+    @app.post("/api/telegram/pair")
+    def pair(request: Request):
+        authorized(request)
+        csrf(request, request.headers.get("X-CSRF-Token"))
+        with sessions.begin() as session:
+            control = control_lock(session)
+            if not control.worker_heartbeat or control.worker_heartbeat <= utcnow() - timedelta(seconds=90):
+                raise ServiceError("worker_unavailable", "ابتدا سرویس انتقال را اجرا کنید.")
+            url = begin_pairing(session)
+        return {"url": url, "expires_in": 600}
 
     @app.post("/api/sync")
     async def toggle(request: Request):
@@ -213,7 +230,7 @@ def create_app(settings=None, sessions=None):
                     cancel_job(job)
                 elif data.get("action") == "review_retry":
                     if not job.needs_review or data.get("confirmation") != "checked_no_message":
-                        raise ServiceError("review_required", "ابتدا مطمئن شوید هیچ پیام متناظری در کانال ارسال نشده است.")
+                        raise ServiceError("review_required", "ابتدا مطمئن شوید هیچ پیام متناظری در گفتگوی مقصد ارسال نشده است.")
                     queue_selected(session, job, settings, reviewed=True)
                 elif data.get("action") == "review_close":
                     if not job.needs_review:

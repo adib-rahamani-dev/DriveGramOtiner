@@ -14,7 +14,7 @@ async function post(url, body) {
     if (response.status === 401) { location.href = "/login"; return false; }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || data.detail || "درخواست کامل نشد.");
-    $("alert").hidden = true; return true;
+    $("alert").hidden = true; return data;
   } catch (error) { showError(error.message); return false; }
 }
 async function action(id, action, confirmation) { if (await post("/api/jobs/action", {ids: [id], action, confirmation})) { selected.delete(id); await refresh(); } }
@@ -36,7 +36,7 @@ function renderJob(job) {
   if (job.link) { const link = el("a", "", "مشاهده پیام ↗"); link.href = job.link; link.target = "_blank"; link.rel = "noopener noreferrer"; actions.append(link); }
   if (job.review) {
     const review = el("div", "review"); const label = el("label"); const check = el("input"); check.type = "checkbox";
-    label.append(check, el("span", "", "کانال را بررسی کردم و مطمئنم این نسخه ارسال نشده؛ Bot API دیگر در حال پردازش آن نیست."));
+    label.append(check, el("span", "", "گفتگوی مقصد را بررسی کردم و مطمئنم این نسخه ارسال نشده؛ Bot API دیگر در حال پردازش آن نیست."));
     const retry = button("ارسال پس از بررسی", () => action(job.id, "review_retry", "checked_no_message")); retry.disabled = true;
     check.addEventListener("change", () => { retry.disabled = !check.checked; });
     review.append(label, retry, button("بستن بررسی بدون ارسال", () => action(job.id, "review_close"))); description.append(review);
@@ -52,15 +52,18 @@ async function refresh() {
     if (!response.ok) throw new Error("خواندن وضعیت سرویس ممکن نیست.");
     state = await response.json(); pages = state.pages;
     $("google").textContent = state.google; $("telegram").textContent = state.telegram; $("oauth").disabled = !state.google_can_connect;
+    $("pair-telegram").disabled = !state.telegram_can_pair;
+    $("pair-telegram").textContent = state.telegram_paired ? "اتصال دوبارهٔ پی‌وی" : "اتصال پی‌وی من";
+    if (state.telegram_paired && !state.telegram_pair_pending && !$("pair-link").hidden) { $("pair-link").hidden = true; $("pair-help").textContent = "مقصد ثبت شد؛ وضعیت اتصال تلگرام در بالا نمایش داده می‌شود."; }
     $("last-scan").textContent = `آخرین اسکن: ${date(state.last_scan)}`;
     $("disk").textContent = state.disk_free == null ? "در انتظار اتصال پردازشگر" : size(state.disk_free);
     $("disk-meter").value = state.disk_total ? (state.disk_total - state.disk_free) / state.disk_total * 100 : 0;
     $("queue").textContent = `${number(state.queue_count)} در صف`; $("sync").checked = state.auto_sync;
-    $("worker").textContent = state.worker_ok ? "worker فعال" : "worker در دسترس نیست"; $("worker").className = `badge ${state.worker_ok ? "good" : "failed"}`;
+    $("worker").textContent = state.worker_ok ? "سرویس انتقال فعال" : "سرویس انتقال در دسترس نیست"; $("worker").className = `badge ${state.worker_ok ? "good" : "failed"}`;
     for (const id of [...selected]) { if (!state.jobs.some(j => j.id === id && j.can_queue)) selected.delete(id); }
     // Preserve the review checkbox while polling: replacing focused controls discards deliberate input.
     if (!$("jobs").contains(document.activeElement)) {
-      $("jobs").replaceChildren(...(state.jobs.length ? state.jobs.map(renderJob) : [el("div", "empty", "هنوز ویدیویی ثبت نشده است. اتصال Drive و اجرای worker را بررسی کنید.")]));
+      $("jobs").replaceChildren(...(state.jobs.length ? state.jobs.map(renderJob) : [el("div", "empty", "هنوز ویدیویی ثبت نشده است. اتصال Drive و اجرای سرویس انتقال را بررسی کنید.")]));
     }
     $("page-info").textContent = `صفحه ${number(page)} از ${number(pages)}`; $("prev").disabled = page <= 1; $("next").disabled = page >= pages; updateSelection();
   } catch (error) { showError(error.message); } finally { busy = false; }
@@ -70,4 +73,8 @@ $("queue-selected").addEventListener("click", async () => { if (await post("/api
 $("select-all").addEventListener("change", () => { selected.clear(); if ($("select-all").checked && state) for (const j of state.jobs) if (j.can_queue) selected.add(j.id); $("jobs").replaceChildren(...state.jobs.map(renderJob)); updateSelection(); });
 $("prev").addEventListener("click", () => { if (page > 1) { page--; selected.clear(); refresh(); } });
 $("next").addEventListener("click", () => { if (page < pages) { page++; selected.clear(); refresh(); } });
+$("pair-telegram").addEventListener("click", async () => {
+  const result = await post("/api/telegram/pair", {});
+  if (result) { $("pair-link").href = result.url; $("pair-link").hidden = false; $("pair-help").textContent = "این لینک فقط ۱۰ دقیقه معتبر است. آن را باز کنید و Start بزنید؛ منتظر ثبت مقصد بمانید."; }
+});
 refresh(); setInterval(refresh, 3000);

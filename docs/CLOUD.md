@@ -21,7 +21,7 @@ Vercel stateless است؛ حتی پشتیبانی OCI آن دیسک پایدار
 
 ## پردازشگر
 
-روی میزبان Linux همین مخزن را clone کنید و `.env` مخصوص آن میزبان را از `.env.example` بسازید. مراحل README دربارهٔ Google OAuth، ربات موجود، logOut و شناسهٔ کانال همچنان لازم است. `DATABASE_URL` و کلید Fernet باید با پنل یکسان باشند. اطلاعات Telegram فقط در `.env` همین میزبان قرار بگیرند. `TEMP_DIR=/transfers` و `TELEGRAM_BOT_API_URL=http://bot-api:8081`.
+روی میزبان Linux همین مخزن را clone کنید و `.env` مخصوص آن میزبان را از `.env.example` بسازید. مراحل README دربارهٔ Google OAuth، ربات موجود، logOut و اتصال پی‌وی از پنل همچنان لازم است. `DATABASE_URL` و کلید Fernet باید با پنل یکسان باشند. اطلاعات Telegram فقط در `.env` همین میزبان قرار بگیرند. `TEMP_DIR=/transfers` و `TELEGRAM_BOT_API_URL=http://bot-api:8081`.
 
 ```sh
 docker compose -f compose.cloud.yaml up -d --build

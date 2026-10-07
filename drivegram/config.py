@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     telegram_api_id: str = ""
     telegram_api_hash: SecretStr = SecretStr("")
     telegram_channel_id: str = ""
+    telegram_chat_id: str = ""
     telegram_bot_api_url: str = "http://bot-api:8081"
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")
@@ -56,7 +57,11 @@ class Settings(BaseSettings):
     @property
     def telegram_configured(self):
         return bool(self.telegram_bot_token.get_secret_value() and self.telegram_api_id
-                    and self.telegram_api_hash.get_secret_value() and self.telegram_channel_id)
+                    and self.telegram_api_hash.get_secret_value() and self.telegram_target_id)
+
+    @property
+    def telegram_target_id(self):
+        return self.telegram_chat_id or self.telegram_channel_id
 
 
 @lru_cache

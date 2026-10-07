@@ -72,7 +72,7 @@ class Telegram:
             raise ServiceError("telegram_connect", "اتصال به Local Bot API ممکن نیست.", retryable=True) from None
         except httpx.HTTPError:
             raise ServiceError("upload_unknown" if sending else "telegram_network",
-                               "نتیجه ارسال نامشخص است؛ کانال را بررسی کنید." if sending else "ارتباط تلگرام قطع شد.",
+                               "نتیجه ارسال نامشخص است؛ گفتگوی مقصد را بررسی کنید." if sending else "ارتباط تلگرام قطع شد.",
                                retryable=not sending, ambiguous=sending) from None
         try:
             data = response.json()
@@ -90,15 +90,20 @@ class Telegram:
             if code >= 500:
                 raise ServiceError("telegram_server", "خطای سرور تلگرام؛ نتیجه ارسال را بررسی کنید.",
                                    retryable=not sending, ambiguous=sending)
-            raise ServiceError("telegram_access", "مجوز ربات، شناسه کانال یا فایل ارسالی را بررسی کنید.")
+            raise ServiceError("telegram_access", "مجوز ربات، شناسه مقصد یا فایل ارسالی را بررسی کنید.")
         return data.get("result")
 
     def check(self):
         me = self.call("getMe")
         if not isinstance(me, dict) or me.get("username", "").lower() != EXPECTED_BOT.lower():
             raise ServiceError("wrong_bot", "توکن متعلق به ربات DriveGramOtiner_bot نیست.")
-        chat = self.call("getChat", {"chat_id": self.settings.telegram_channel_id})
-        member = self.call("getChatMember", {"chat_id": self.settings.telegram_channel_id, "user_id": me["id"]})
+        target = self.settings.telegram_target_id
+        chat = self.call("getChat", {"chat_id": target})
+        if self.settings.telegram_chat_id:
+            if chat.get("type") != "private" or str(chat.get("id")) != target:
+                raise ServiceError("private_access", "مقصد باید پیام خصوصی حساب متصل‌شده باشد؛ ربات را Start کنید.")
+            return me
+        member = self.call("getChatMember", {"chat_id": target, "user_id": me["id"]})
         if chat.get("type") != "channel" or member.get("status") not in {"administrator", "creator"}:
             raise ServiceError("channel_access", "ربات باید مدیر کانال مقصد باشد.")
         if member.get("status") == "administrator" and not member.get("can_post_messages"):
@@ -108,7 +113,7 @@ class Telegram:
     def send(self, path, name):
         info = streamable_video(path)
         kind = "video" if info else "document"
-        payload = {"chat_id": self.settings.telegram_channel_id, "caption": caption(name), kind: path.as_uri()}
+        payload = {"chat_id": self.settings.telegram_target_id, "caption": caption(name), kind: path.as_uri()}
         if info:
             payload.update({k: v for k, v in info.items() if v is not None})
             payload["supports_streaming"] = True
@@ -118,7 +123,7 @@ class Telegram:
         try:
             return str(result["chat"]["id"]), int(result["message_id"]), result[kind]["file_id"]
         except (KeyError, TypeError, ValueError):
-            raise ServiceError("upload_unknown", "پاسخ موفق تلگرام ناقص است؛ کانال را بررسی کنید.", ambiguous=True) from None
+            raise ServiceError("upload_unknown", "پاسخ موفق تلگرام ناقص است؛ گفتگوی مقصد را بررسی کنید.", ambiguous=True) from None
 
 
 def message_link(chat_id, message_id):

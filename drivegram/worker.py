@@ -14,6 +14,7 @@ from drivegram.db import database
 from drivegram.errors import Canceled, LostClaim, ServiceError
 from drivegram.google import GoogleDrive
 from drivegram.models import Job, utcnow
+from drivegram.pairing import destination_settings, poll_pairing_once
 from drivegram.queue import claim_job, control_lock, current_scope, finish_error, record_scan, recover_stale
 from drivegram.security import configure_logging, safe_filename
 from drivegram.telegram import Telegram
@@ -82,9 +83,10 @@ def transfer(sessions, settings, job_id, claim, drive_factory=GoogleDrive, teleg
     try:
         with sessions() as session:
             snapshot = session.get(Job, job_id)
+            target_settings = destination_settings(session, settings)
         path = transfer_path(settings, job_id, claim, snapshot.original_name)
         path.parent.mkdir(parents=True, exist_ok=True)
-        drive, telegram = drive_factory(settings, sessions), telegram_factory(settings)
+        drive, telegram = drive_factory(settings, sessions), telegram_factory(target_settings)
         drive.download(snapshot, path, progress)
         if lost.is_set():
             raise LostClaim()
@@ -95,7 +97,7 @@ def transfer(sessions, settings, job_id, claim, drive_factory=GoogleDrive, teleg
             if current_scope(session, settings) != job.source_scope:
                 raise ServiceError("source_changed", "اتصال Google تغییر کرده است؛ دوباره اسکن کنید.")
             job.bytes_downloaded = job.size_bytes
-            job.telegram_chat_id = settings.telegram_channel_id
+            job.telegram_chat_id = target_settings.telegram_target_id
             job.status = "uploading"
         sending = True
         chat_id, message_id, file_id = telegram.send(path, snapshot.original_name)
@@ -130,7 +132,7 @@ def transfer(sessions, settings, job_id, claim, drive_factory=GoogleDrive, teleg
                 job = owned_job(session, job_id, claim)
                 finish_error(session, job, ServiceError(
                     "upload_unknown" if sending else "worker_error",
-                    "نتیجه ارسال نامشخص است؛ کانال را بررسی کنید." if sending else "خطای پردازش؛ تلاش محدود مجدد انجام می‌شود.",
+                    "نتیجه ارسال نامشخص است؛ گفتگوی مقصد را بررسی کنید." if sending else "خطای پردازش؛ تلاش محدود مجدد انجام می‌شود.",
                     retryable=not sending, ambiguous=sending,
                 ), settings)
         except Exception:
@@ -222,12 +224,16 @@ def main():
                     recover_stale(session, settings)
                 cleanup(sessions, settings)
                 Path("/tmp/drivegram-worker-heartbeat").touch()
+                if settings.telegram_bot_token.get_secret_value() and poll_pairing_once(sessions, settings):
+                    telegram_ready, last_check = False, 0
+                with sessions() as session:
+                    target_settings = destination_settings(session, settings)
                 if time.monotonic() - last_check >= 60:
                     telegram_ready = False
                     last_check = time.monotonic()
                     error_message = "نیاز به تنظیم اتصال تلگرام."
-                    if settings.telegram_configured:
-                        telegram = Telegram(settings)
+                    if target_settings.telegram_configured:
+                        telegram = Telegram(target_settings)
                         try:
                             telegram.check()
                             telegram_ready, error_message = True, None

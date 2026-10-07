@@ -68,6 +68,8 @@ def claim_job(session, settings, scope):
     # All claimers serialize on this durable row, enforcing a GLOBAL concurrency cap.
     control = control_lock(session)
     now = utcnow()
+    if control.pair_hash and control.pair_expires_at and control.pair_expires_at > now:
+        return None
     if control.telegram_retry_at and control.telegram_retry_at > now:
         return None
     count = session.scalar(select(func.count()).select_from(Job).where(Job.status.in_(ACTIVE)))
@@ -99,7 +101,7 @@ def recover_stale(session, settings):
             job.status = "failed"
             job.needs_review = True
             job.error_code = "upload_unknown"
-            job.error_message = "worker هنگام ارسال قطع شد؛ قبل از ارسال مجدد کانال را بررسی کنید."
+            job.error_message = "worker هنگام ارسال قطع شد؛ قبل از ارسال مجدد گفتگوی مقصد را بررسی کنید."
         elif job.cancel_requested:
             job.status = "canceled"
         elif job.attempts >= settings.max_attempts:
@@ -136,7 +138,7 @@ def queue_selected(session, job, settings, *, reviewed=False):
     if job.status not in {"discovered", "failed", "canceled"}:
         raise ServiceError("invalid_state", "این کار در وضعیت قابل ارسال نیست.")
     if job.needs_review and not reviewed:
-        raise ServiceError("review_required", "نتیجه ارسال نامشخص است؛ ابتدا کانال را بررسی کنید.")
+        raise ServiceError("review_required", "نتیجه ارسال نامشخص است؛ ابتدا گفتگوی مقصد را بررسی کنید.")
     if job.source_scope != current_scope(session, settings):
         raise ServiceError("old_source", "این فایل متعلق به اتصال یا پوشه قبلی است؛ دوباره اسکن کنید.")
     if job.size_bytes > settings.max_file_size_mb * 1024 * 1024:

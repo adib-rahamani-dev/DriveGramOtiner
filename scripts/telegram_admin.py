@@ -4,6 +4,8 @@ import argparse
 import httpx
 
 from drivegram.config import get_settings
+from drivegram.db import database
+from drivegram.pairing import destination_settings
 from drivegram.telegram import Telegram
 
 parser = argparse.ArgumentParser()
@@ -15,10 +17,13 @@ if not token:
     raise SystemExit("Configure TELEGRAM_BOT_TOKEN in .env first.")
 try:
     if args.action == "check":
+        _, sessions = database()
+        with sessions() as session:
+            settings = destination_settings(session, settings)
         api = Telegram(settings)
         try:
             me = api.check()
-            print("Bot username and channel posting permissions verified:", me["username"])
+            print("Bot identity and configured destination verified:", me["username"])
         finally:
             api.close()
     else:

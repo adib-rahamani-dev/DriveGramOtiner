@@ -21,5 +21,7 @@ dist
 *.dump
 compose.yaml
 compose.cloud.yaml
+compose.wsl.yaml
+*.cmd
 Dockerfile
 README.md
